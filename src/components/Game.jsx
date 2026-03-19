@@ -15,6 +15,7 @@
 import { useState, useRef, useEffect } from "react";
 import Player from "./Player";
 import Obstacle from "./Obstacle";
+import { isColliding } from "../utils/collision";
 
 function Game() {
   // Horizontal position of player (in pixels)
@@ -22,19 +23,34 @@ function Game() {
   // 400px width - 48px player ≈ center start
 
   const [obstacles, setObstacles] = useState([]);
+  const [gameOver, setGameOver] = useState(false);
 
   const GAME_WIDTH = 400;
   const GAME_HEIGHT = 600;
-  const PLAYER_WIDTH = 48;
+  const  PLAYER = {
+    width: 48,
+    height: 48,
+    y: 600 - 64, // bottom offset (~bottom-4)
+  };
+
+  const OBSTACLE_SIZE = 40;
 
   const MOVE_SPEED = 5;
   const OBSTACLE_SPEED = 4;
   
   // Tracks which keys are currently pressed
   const keysPressed = useRef({});
+  const playerXRef = useRef(playerX);
+  // Unique ID generator for obstacles to ensure stable keys in React lists
   const obstacleId = useRef(0);
 
   useEffect(() => {
+    playerXRef.current = playerX;
+  }, [playerX]);
+
+  useEffect(() => {
+    if (gameOver) return; // stop loop when game ends
+
     /**
     * Handles left/right arrow key movement.
     * Ensures player stays within game boundaries.
@@ -51,6 +67,8 @@ function Game() {
     window.addEventListener("keyup", handleKeyUp);
 
     let animationFrameId;
+
+    // Timestamp of last obstacle spawn to control spawn rate
     let lastSpawnTime = 0;
 
     /**
@@ -66,7 +84,7 @@ function Game() {
         if (keysPressed.current["ArrowRight"]) newX += MOVE_SPEED;
 
         // Boundary enforcement
-        newX = Math.max(0, Math.min(newX, GAME_WIDTH - PLAYER_WIDTH));
+        newX = Math.max(0, Math.min(newX, GAME_WIDTH - PLAYER.width));
 
         return newX;
       });
@@ -75,27 +93,68 @@ function Game() {
       if (time - lastSpawnTime > 800) {
         lastSpawnTime = time;
 
+        /* 
+         * New obstacle with unique ID and random horizontal position.
+         * Starts at y=0 (top of the game area).
+        */
         setObstacles((prev) => [
           ...prev,
           {
             id: obstacleId.current++,
-            x: Math.random() * (GAME_WIDTH - 40),
+            x: Math.random() * (GAME_WIDTH - OBSTACLE_SIZE),
             y: 0,
           },
         ]);
       }
-      // MOVE OBSTACLES
-      setObstacles((prev) =>
-        prev.map((obs) => ({
-          ...obs,
-          y: obs.y + OBSTACLE_SPEED,
-        }))
-      );
 
-      // REMOVE OFF-SCREEN OBSTACLES
-      setObstacles((prev) =>
-        prev.filter((obs) => obs.y < GAME_HEIGHT)
-      );
+      /* 
+       * MOVE OBSTACLES + COLLISION CHECK + CLEANUP
+        * Each obstacle's y position is increased by OBSTACLE_SPEED to create falling effect.
+      */
+      setObstacles((prev) => {
+        const updated = [];
+
+        for (let obs of prev) {
+          const newY = obs.y + OBSTACLE_SPEED;
+
+          const playerRect = {
+            x: playerXRef.current,
+            y: PLAYER.y,
+            width: PLAYER.width,
+            height: PLAYER.height,
+          };
+
+          const obstacleRect = {
+            x: obs.x,
+            y: newY,
+            width: OBSTACLE_SIZE,
+            height: OBSTACLE_SIZE,
+          };
+
+          // COLLSION CHECK
+          if (isColliding(playerRect, obstacleRect)) {
+            setGameOver(true);
+            return prev; // stop updating obstacles on collision
+          }
+
+          /* 
+           * Only keep obstacles that are still within the game area.
+           * This prevents memory bloat from off-screen obstacles.
+           * Obstacles are removed once their top edge goes below the bottom of the game area.
+           * (i.e., newY < GAME_HEIGHT means the obstacle is still visible).
+           * This ensures that obstacles are cleaned up once they fall off-screen, maintaining performance.
+           * Obstacles that have moved beyond the bottom edge of the game area are discarded and not rendered.
+           * This is crucial for preventing memory leaks and ensuring smooth gameplay as more obstacles are spawned over time.
+           * By only keeping active obstacles in the state, we optimize rendering and resource usage.
+           * This cleanup mechanism is essential for a game with continuous spawning of entities to maintain performance and prevent slowdowns.
+          */
+          if (newY < GAME_HEIGHT) {
+            updated.push({ ...obs, y: newY });
+          }
+        }
+
+        return updated;
+      });
 
       animationFrameId = requestAnimationFrame(gameLoop);
     };
@@ -108,7 +167,7 @@ function Game() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, []);
+  }, [gameOver]);
 
   return (
     <div className="relative w-100 h-150 border border-gray-700 overflow-hidden">
@@ -117,6 +176,12 @@ function Game() {
       {obstacles.map((obs) => (
         <Obstacle key={obs.id} x={obs.x} y={obs.y} />
       ))}
+
+      {gameOver && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center text-xl">
+          Game Over
+        </div>
+      )}
     </div>
   );
 }
