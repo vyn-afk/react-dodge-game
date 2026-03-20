@@ -36,7 +36,7 @@ function Game() {
   const OBSTACLE_SIZE = 40;
 
   const MOVE_SPEED = 5;
-  const OBSTACLE_SPEED = 4;
+  const OBSTACLE_SPEED = 8;
   
   // Tracks which keys are currently pressed
   const keysPressed = useRef({});
@@ -89,8 +89,8 @@ function Game() {
         return newX;
       });
 
-      // SPAWN OBSTACLES (every ~800ms)
-      if (time - lastSpawnTime > 800) {
+      // SPAWN OBSTACLES (every ~500ms)
+      if (time - lastSpawnTime > 500) {
         lastSpawnTime = time;
 
         /* 
