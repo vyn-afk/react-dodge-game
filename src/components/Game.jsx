@@ -24,6 +24,7 @@ function Game() {
 
   const [obstacles, setObstacles] = useState([]);
   const [gameOver, setGameOver] = useState(false);
+  const [score, setScore] = useState(0);
 
   const GAME_WIDTH = 400;
   const GAME_HEIGHT = 600;
@@ -150,6 +151,9 @@ function Game() {
           */
           if (newY < GAME_HEIGHT) {
             updated.push({ ...obs, y: newY });
+          } else {
+            // Increment score for each obstacle that successfully falls off-screen
+            setScore((prev) => prev + 1);
           }
         }
 
@@ -182,6 +186,10 @@ function Game() {
           Game Over
         </div>
       )}
+
+      <div className="absolute top-2 left-2 text-sm text-gray-300">
+        Score: {score}
+      </div> 
     </div>
   );
 }
