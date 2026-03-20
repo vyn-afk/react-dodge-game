@@ -45,6 +45,16 @@ function Game() {
   // Unique ID generator for obstacles to ensure stable keys in React lists
   const obstacleId = useRef(0);
 
+  /**
+ * Resets the game to initial state
+ */
+  const resetGame = () => {
+    setPlayerX(176);
+    setObstacles([]);
+    setScore(0);
+    setGameOver(false);
+  };
+
   useEffect(() => {
     playerXRef.current = playerX;
   }, [playerX]);
@@ -116,6 +126,17 @@ function Game() {
         const updated = [];
 
         for (let obs of prev) {
+          /* 
+           * Calculate new Y position for the obstacle.
+           * This simulates the falling motion by incrementing the y-coordinate.
+           * The speed of the fall is determined by OBSTACLE_SPEED, which can be adjusted for difficulty.
+           * A higher OBSTACLE_SPEED results in faster falling obstacles, increasing the challenge for the player.
+           * The newY variable represents the updated vertical position of the obstacle for the current frame of the game loop.
+           * This continuous update creates a smooth falling animation as obstacles move down the screen over time.
+           * By updating the y position on each frame, we ensure that obstacles move consistently and predictably, allowing players to react accordingly.
+           * The movement logic is crucial for creating engaging gameplay, as it directly affects how players interact with and avoid obstacles.
+           * Properly managing obstacle movement is essential for maintaining a fun and challenging gaming experience.
+          */
           const newY = obs.y + OBSTACLE_SPEED;
 
           const playerRect = {
@@ -182,14 +203,19 @@ function Game() {
       ))}
 
       {gameOver && (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center text-xl">
-          Game Over
+        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-4">
+          <div className="text-xl">Game Over</div>
+          <div className="text-sm text-gray-400">Score: {score}</div>
+
+          <button
+            onClick={resetGame}
+            className="px-4 py-2 bg-white text-black text-sm"
+          >
+            Restart
+          </button>
         </div>
       )}
-
-      <div className="absolute top-2 left-2 text-sm text-gray-300">
-        Score: {score}
-      </div> 
+      
     </div>
   );
 }
